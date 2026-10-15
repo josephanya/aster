@@ -2,6 +2,54 @@ use super::*;
 use reqwest::StatusCode;
 
 #[test]
+fn azure_models_use_max_completion_tokens() {
+    let mut body = serde_json::json!({
+        "model": "gpt-4o-mini",
+        "max_tokens": 8000
+    });
+    adapt_token_cap("https://acme.openai.azure.com/openai/v1", &mut body);
+    assert_eq!(
+        body,
+        serde_json::json!({
+            "model": "gpt-4o-mini",
+            "max_completion_tokens": 8000
+        })
+    );
+}
+
+#[test]
+fn azure_ai_services_models_use_max_completion_tokens() {
+    let mut body = serde_json::json!({
+        "model": "gpt-4o-mini",
+        "max_tokens": 8000
+    });
+    adapt_token_cap("https://acme.services.ai.azure.com/openai/v1", &mut body);
+    assert_eq!(
+        body,
+        serde_json::json!({
+            "model": "gpt-4o-mini",
+            "max_completion_tokens": 8000
+        })
+    );
+}
+
+#[test]
+fn other_endpoints_keep_max_tokens() {
+    let mut body = serde_json::json!({
+        "model": "gpt-6-astra",
+        "max_tokens": 8000
+    });
+    adapt_token_cap("https://openrouter.ai/api/v1", &mut body);
+    assert_eq!(
+        body,
+        serde_json::json!({
+            "model": "gpt-6-astra",
+            "max_tokens": 8000
+        })
+    );
+}
+
+#[test]
 fn format_api_error_prefers_openrouter_upstream_message() {
     let body = r#"{"error":{"message":"Provider returned error","code":429,"metadata":{"raw":"kimi is temporarily rate-limited upstream. Please retry shortly.","provider_name":"Moonshot AI"}}}"#;
     let msg = format_api_error(StatusCode::TOO_MANY_REQUESTS, body);

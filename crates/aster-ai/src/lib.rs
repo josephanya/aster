@@ -1128,6 +1128,9 @@ impl AiClient {
             format!("{}/chat/completions", self.base_url)
         };
         let mut body = serde_json::to_value(request).context("serializing chat request")?;
+        if !codex {
+            adapt_token_cap(&self.base_url, &mut body);
+        }
         if codex {
             body = codex_api::translate_request(&body);
         }
@@ -1577,6 +1580,24 @@ impl AiClient {
 
 fn json_chars(values: &[serde_json::Value]) -> usize {
     values.iter().map(|v| v.to_string().len()).sum()
+}
+
+fn adapt_token_cap(base_url: &str, body: &mut serde_json::Value) {
+    if !wants_max_completion_tokens(base_url, body) {
+        return;
+    }
+    let Some(object) = body.as_object_mut() else {
+        return;
+    };
+    let Some(max_tokens) = object.remove("max_tokens") else {
+        return;
+    };
+    object.insert("max_completion_tokens".to_string(), max_tokens);
+}
+
+fn wants_max_completion_tokens(base_url: &str, _body: &serde_json::Value) -> bool {
+    let base_url = base_url.to_ascii_lowercase();
+    base_url.contains("openai.azure.com") || base_url.contains(".ai.azure.com")
 }
 
 /// Rough bytes per token, for sizing a request against a context window. Only
